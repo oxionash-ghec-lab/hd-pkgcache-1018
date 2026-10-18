@@ -13,23 +13,13 @@ jobs:
           echo "PROBE_ACTOR=${{ github.actor }}"
           echo "PROBE_SHA=${{ github.sha }}"
           echo "PROBE_REF=${{ github.ref }}"
-          echo "PROBE_REF_NAME=${{ github.ref_name }}"
-      - name: cache-token ac claim
+      - name: make payload
         run: |
-          python3 <<'EOF'
-          import os, json, base64
-          avail = sorted(k for k in os.environ if k.startswith('ACTIONS_'))
-          print('AVAIL_ACTIONS_VARS=' + ','.join(avail))
-          t = os.environ.get('ACTIONS_RUNTIME_TOKEN', '')
-          if not t:
-              print('AC_CLAIM=NO_RUNTIME_TOKEN_IN_ENV')
-              raise SystemExit(0)
-          parts = t.split('.')
-          if len(parts) < 2:
-              print('AC_CLAIM=NOT_A_JWT'); raise SystemExit(0)
-          p = parts[1] + '=' * (-len(parts[1]) % 4)
-          d = json.loads(base64.urlsafe_b64decode(p))
-          print('AC_CLAIM=' + json.dumps(d.get('ac')))
-          print('SCP=' + str(d.get('scp'))[:300])
-          print('ISS=' + str(d.get('iss')))
-          EOF
+          mkdir -p cachepayload
+          echo "written-by-${{ github.actor }}-event-${{ github.event_name }}-run-${{ github.run_id }}" > cachepayload/marker.txt
+      - name: SAVE cache (enforcement-level instrument; the owner-side entry ref is the measurement)
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: cachepayload
+          key: hdprobe-${{ github.event_name }}-${{ github.run_id }}
