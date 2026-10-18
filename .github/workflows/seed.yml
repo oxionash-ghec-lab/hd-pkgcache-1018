@@ -1,0 +1,23 @@
+name: seed
+on: workflow_dispatch
+permissions:
+  contents: read
+  packages: write
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: build a minimal image
+        run: |
+          mkdir -p ctx && cd ctx
+          echo "owner-seed-1018" > marker.txt
+          printf 'FROM scratch\nCOPY marker.txt /marker.txt\n' > Dockerfile
+      - name: login to ghcr
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: push
+        run: |
+          cd ctx
+          IMG=ghcr.io/${{ github.repository_owner }}/hd-pkgcache-1018
+          docker build -t $IMG:owner-seed .
+          docker push $IMG:owner-seed
+          echo "SEEDED=$IMG:owner-seed"
