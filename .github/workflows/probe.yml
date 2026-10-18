@@ -1,0 +1,35 @@
+name: probe
+on:
+  registry_package:
+    types: [published, updated]
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: context
+        run: |
+          echo "PROBE_EVENT=${{ github.event_name }}"
+          echo "PROBE_ACTOR=${{ github.actor }}"
+          echo "PROBE_SHA=${{ github.sha }}"
+          echo "PROBE_REF=${{ github.ref }}"
+          echo "PROBE_REF_NAME=${{ github.ref_name }}"
+      - name: cache-token ac claim
+        run: |
+          python3 <<'EOF'
+          import os, json, base64
+          avail = sorted(k for k in os.environ if k.startswith('ACTIONS_'))
+          print('AVAIL_ACTIONS_VARS=' + ','.join(avail))
+          t = os.environ.get('ACTIONS_RUNTIME_TOKEN', '')
+          if not t:
+              print('AC_CLAIM=NO_RUNTIME_TOKEN_IN_ENV')
+              raise SystemExit(0)
+          parts = t.split('.')
+          if len(parts) < 2:
+              print('AC_CLAIM=NOT_A_JWT'); raise SystemExit(0)
+          p = parts[1] + '=' * (-len(parts[1]) % 4)
+          d = json.loads(base64.urlsafe_b64decode(p))
+          print('AC_CLAIM=' + json.dumps(d.get('ac')))
+          print('SCP=' + str(d.get('scp'))[:300])
+          print('ISS=' + str(d.get('iss')))
+          EOF
